@@ -106,18 +106,14 @@ module.exports = async function (ctx) {
     window.once('close', () => {
       const myself = window
       window = null
+      dock.hide() // NOTE: not working?
       myself.close()
     })
 
     await new Promise(resolve => {
       window.once('ready-to-show', () => {
         logger.info('[web ui] window ready')
-
-        if (store.get(CONFIG_KEY)) {
-          launchWindow('/').then(resolve)
-        } else {
-          resolve()
-        }
+        launchWindow('/').then(resolve)
       })
 
       updateLanguage()
@@ -203,7 +199,11 @@ module.exports = async function (ctx) {
     callback({ responseHeaders })
   })
 
-  return getWindow()
+  return async () => {
+    if (store.get(CONFIG_KEY)) {
+      await launchWindow('/')
+    }
+  }
 }
 
 module.exports.CONFIG_KEY = CONFIG_KEY
