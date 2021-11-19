@@ -53,13 +53,6 @@ const createWindow = () => {
     store.set('window.height', dim[1])
   })
 
-  window.on('close', (event) => {
-    event.preventDefault()
-    window.hide()
-    dock.hide()
-    logger.info('[web ui] window hidden')
-  })
-
   app.on('before-quit', () => {
     // Makes sure the app quits even though we prevent
     // the closing of this window.
@@ -96,17 +89,51 @@ module.exports = async function (ctx) {
 
   openExternal()
 
-  const window = createWindow(ctx)
-  let apiAddress = null
-
-  ctx.webui = window
-
   const url = new URL('/', 'webui://-')
   url.hash = '/blank'
   url.searchParams.set('deviceId', ctx.countlyDeviceId)
 
-  ctx.launchWebUI = (path, { focus = true, forceRefresh = false } = {}) => {
-    if (forceRefresh) window.webContents.reload()
+  let window = null
+  let apiAddress = null
+
+  const getWindow = async () => {
+    if (window !== null) {
+      return window
+    }
+
+    window = createWindow(ctx)
+
+    window.once('close', () => {
+      const myself = window
+      window = null
+      myself.close()
+    })
+
+    await new Promise(resolve => {
+      window.once('ready-to-show', () => {
+        logger.info('[web ui] window ready')
+
+        if (store.get(CONFIG_KEY)) {
+          launchWindow('/').then(resolve)
+        } else {
+          resolve()
+        }
+      })
+
+      updateLanguage()
+      window.loadURL(url.toString())
+    })
+
+    return window
+  }
+
+  const launchWindow = async (path, { focus = true, forceRefresh = false } = {}) => {
+    const window = await getWindow()
+
+    if (forceRefresh) {
+      window.webContents.reload()
+    }
+
     if (!path) {
       logger.info('[web ui] launching web ui')
     } else {
@@ -114,14 +141,23 @@ module.exports = async function (ctx) {
       url.hash = path
       window.webContents.loadURL(url.toString())
     }
+
     if (focus) {
       window.show()
       window.focus()
       dock.show()
     }
+
     // load again: minimize visual jitter on windows
     if (path) window.webContents.loadURL(url.toString())
   }
+
+  ctx.launchWebUI = launchWindow
+  ctx.getWebUI = getWindow
+
+  app.on('window-all-closed', () => {
+    // Do not quit the app just because there's no windows.
+  })
 
   function updateLanguage () {
     url.searchParams.set('lng', store.get('language'))
@@ -134,15 +170,17 @@ module.exports = async function (ctx) {
       apiAddress = ipfsd.apiAddr
       url.searchParams.set('api', apiAddress)
       updateLanguage()
-      window.loadURL(url.toString())
+      if (window) window.loadURL(url.toString())
     }
   })
 
   ipcMain.on('config.get', () => {
-    window.webContents.send('config.changed', {
-      platform: os.platform(),
-      config: store.store
-    })
+    if (window) {
+      window.webContents.send('config.changed', {
+        platform: os.platform(),
+        config: store.store
+      })
+    }
   })
 
   // Avoid setting CORS by acting like /webui loaded from API port
@@ -165,20 +203,7 @@ module.exports = async function (ctx) {
     callback({ responseHeaders })
   })
 
-  return new Promise(resolve => {
-    window.once('ready-to-show', () => {
-      logger.info('[web ui] window ready')
-
-      if (store.get(CONFIG_KEY)) {
-        ctx.launchWebUI('/')
-      }
-
-      resolve()
-    })
-
-    updateLanguage()
-    window.loadURL(url.toString())
-  })
+  return getWindow()
 }
 
 module.exports.CONFIG_KEY = CONFIG_KEY
