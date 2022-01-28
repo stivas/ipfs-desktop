@@ -1,12 +1,14 @@
-module.exports = ({ pallette, message, defaultValue, buttons, id }) => (`<!DOCTYPE html>
+module.exports = ({ pallette, message, inputs, buttons, id }) => (`<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" /> 
   </head>
   <body>
     <p>${message}</p>
-    <input type="text" value="${defaultValue}" />
-    <div id="buttons">${buttons.join('\n')}</div>
+    <form>
+      ${inputs}
+      <div id="buttons">${buttons}</div>
+    </form>
   </body>
   <style>
   :root {
@@ -53,6 +55,19 @@ module.exports = ({ pallette, message, defaultValue, buttons, id }) => (`<!DOCTY
     padding: 0.15rem;
     outline: 0;
   }
+  div.group {
+    margin: 0.5rem 0;
+  }
+  div.inline input,
+  div.inline label {
+    display: inline-block;
+    width: auto;
+    vertical-align: middle;
+  }
+  input[type=radio],
+  input[type=checkbox] {
+    margin-right: 0.25rem;
+  }
   #buttons {
     text-align: right;
   }
@@ -82,7 +97,7 @@ module.exports = ({ pallette, message, defaultValue, buttons, id }) => (`<!DOCTY
     for (const button of document.querySelectorAll('button')) {
       button.addEventListener('click', event => {
         ipcRenderer.send('${id}', {
-          input: document.querySelector('input').value,
+          input: Object.fromEntries(new FormData(document.querySelector('form')).entries()),
           button: Number(button.id)
         })
       })
