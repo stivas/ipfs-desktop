@@ -240,5 +240,14 @@
     "message": "Ongoing operation is taking more resources than expected. Do you wish to abort, and forcefully reload the interface?",
     "forceReload": "Yes, reload",
     "doNothing": "Do nothing"
+  },
+  "protocolHandlerDialog": {
+    "title": "Opening IPFS URIs",
+    "message": "How would you like IPFS Desktop to open IPFS URIs?",
+    "browserPublicGateway": "In my default browser using a public gateway",
+    "browserLocalGateway": "In my default browser using a local gateway",
+    "filesScreen": "In the Files screen",
+    "exploreScreen": "In the Explore screen",
+    "rememberThisChoice": "Remember this choice for all IPFS URIs"
   }
 }
